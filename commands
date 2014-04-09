@@ -1,0 +1,32 @@
+GENERATE INPUT:
+./compile.sh
+
+params: numer dimensions range
+
+./generator.out 10 2 10 > ../input/input10_2_10.in
+
+HADOOP FS MANAGEMENT:
+
+//hadoop fs -al                         - list files
+//hadoop fs -rm  file                   - rm 
+//hadoop fs -rmr  sius/                 - rmdir (forced)
+
+
+hadoop fs -ls sius/input                            
+hadoop fs -mkdir sius/input
+hadoop fs -put input/input10_2_10.in sius/input        - copy file to hdfs
+hadoop fs -ls sius/input
+
+COMPILE & RUN:
+
+javac -cp .:/usr/lib/hadoop/*:/usr/lib/hadoop-0.20-mapreduce/*:kmeans -d wordcount_classes kmeans/src/clustering/kmeans/impl/*
+
+jar -cvf clustering.jar -C wordcount_classes/ .
+hadoop jar clustering.jar clustering.kmeans.impl.KMeans sius/input sius/output1 3
+
+EACH TIME YOU RUN A JOB YOU NEED NEW OUTPUT DIRECTORY
+
+http://localhost:50030/jobtracker.jsp
+
+hadoop fs -cat sius/output1/part-00000
+
