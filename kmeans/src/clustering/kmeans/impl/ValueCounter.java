@@ -38,7 +38,7 @@ public class ValueCounter {
 
 	public long countValues(String inputPath, String outputPath) throws Exception {
 		JobConf conf = new JobConf(KMeans.class);
-		conf.setJobName("valuecounter");
+		conf.setJobName("########################################################### Count rows in data set");
 		conf.setOutputKeyClass(Text.class);
 		conf.setOutputValueClass(IntWritable.class);
 		conf.setMapperClass(Map.class);
@@ -50,9 +50,9 @@ public class ValueCounter {
 		job.setNumReduceTasks(0);
 		
 		job.submit();
-		int code = job.waitForCompletion(true) ? 1 : 0;
+		int code = job.waitForCompletion(true) ? 0 : 1;
 		FileSystem.get(conf).delete(new Path(outputPath), true);
-		if(code == 1){
+		if(code == 0){
 			Counter counter = job.getCounters().findCounter(RecordsCounter.Records);
 			return counter.getValue();}
 		else {

@@ -5,14 +5,14 @@ import java.util.Arrays;
 public class Vector {
 	
 
-	int nr;
+	long nr;
 	
 	/**
 	 * Ascending order
 	 */
 	double coeficients[];
 	
-	private Vector(int nr, double t[]){
+	private Vector(long nr, double t[]){
 		this.nr = nr;
 		this.coeficients = t;
 	}
@@ -24,9 +24,9 @@ public class Vector {
 				double [] vals = new double[t.length-1];
 
 				for(int i = 1; i < t.length; i++){
-					vals[i-1] = Double.parseDouble(s);
+					vals[i-1] = Double.parseDouble(t[i]);
 				}
-				return new Vector(Integer.parseInt(t[0]),vals);
+				return new Vector(Long.parseLong(t[0]),vals);
 			}
 		}
 		
@@ -41,11 +41,11 @@ public class Vector {
 		return null;
 	}
 
-	public int getNr() {
+	public long getNr() {
 		return nr;
 	}
 
-	public void setNr(int nr) {
+	public void setNr(long nr) {
 		this.nr = nr;
 	}
 

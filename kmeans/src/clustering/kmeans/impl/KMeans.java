@@ -52,21 +52,31 @@ public class KMeans {
 	}
 
 	public static void main(String[] args) throws Exception {
-		if(args.length != 3){
-			System.out.println("Usage: \n hadoop ... input_path output_path clusters" );
-			return ; 
+		if (args.length != 3) {
+			System.out
+					.println("Usage: \n hadoop ... input_path output_path clusters");
+			return;
 		}
 		String input = args[0];
 		String output = args[1];
-		String countOutput = output+"_count";
-	    int clusters = Integer.parseInt(args[2]);
-		
+		String countOutput = output + "_count";
+		String clustersInitialPath = output + "_0";
+		int clusters = Integer.parseInt(args[2]);
+
 		ValueCounter counter = new ValueCounter();
-		long records = counter.countValues(input,countOutput);
-		 
-		System.out.println("Counted Values: "+records);
+		long records = counter.countValues(input, countOutput);
+		
+		System.out.println("########################################################### COUNTED RECORDS: " + records);
+		ClustersRandomInitialization initialization = new ClustersRandomInitialization(
+				clusters, records, input, clustersInitialPath);
+
+		int initRandom = initialization.execute();
+		if(initRandom!=0){
+			throw new Exception("########################################################### Errior during initialization");
+		}
+
 		JobConf conf = new JobConf(KMeans.class);
-		conf.setJobName("wordcount");
+		conf.setJobName("########################################################### KMEANS CLUSTERING");
 		conf.setOutputKeyClass(Text.class);
 		conf.setOutputValueClass(IntWritable.class);
 		conf.setMapperClass(Map.class);
