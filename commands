@@ -19,7 +19,7 @@ hadoop fs -ls sius/input
 
 COMPILE & RUN:
 
-javac -cp .:/usr/lib/hadoop/*:/usr/lib/hadoop-0.20-mapreduce/*:kmeans -d wordcount_classes kmeans/src/clustering/kmeans/impl/*
+javac -cp .:/usr/lib/hadoop/*:/usr/lib/hadoop-0.20-mapreduce/*:kmeans -d wordcount_classes kmeans/src/clustering/kmeans/impl/* kmeans/src/clustering/kmeans/datatypes/*
 
 jar -cvf clustering.jar -C wordcount_classes/ .
 hadoop jar clustering.jar clustering.kmeans.impl.KMeans sius/input sius/output1 3
