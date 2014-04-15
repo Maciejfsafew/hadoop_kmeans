@@ -21,40 +21,11 @@ import org.apache.hadoop.mapred.TextInputFormat;
 import org.apache.hadoop.mapred.TextOutputFormat;
 
 public class KMeans {
-	public static class Map extends MapReduceBase implements
-			Mapper<LongWritable, Text, Text, IntWritable> {
-		private final static IntWritable one = new IntWritable(1);
-		private Text word = new Text();
-
-		public void map(LongWritable key, Text value,
-				OutputCollector<Text, IntWritable> output, Reporter reporter)
-				throws IOException {
-			String line = value.toString();
-			StringTokenizer tokenizer = new StringTokenizer(line);
-			while (tokenizer.hasMoreTokens()) {
-				word.set(tokenizer.nextToken());
-				output.collect(word, one);
-			}
-		}
-	}
-
-	public static class Reduce extends MapReduceBase implements
-			Reducer<Text, IntWritable, Text, IntWritable> {
-		public void reduce(Text key, Iterator<IntWritable> values,
-				OutputCollector<Text, IntWritable> output, Reporter reporter)
-				throws IOException {
-			int sum = 0;
-			while (values.hasNext()) {
-				sum += values.next().get();
-			}
-			output.collect(key, new IntWritable(sum));
-		}
-	}
 
 	public static void main(String[] args) throws Exception {
-		if (args.length != 3) {
+		if (args.length != 4) {
 			System.out
-					.println("Usage: \n hadoop ... input_path output_path clusters");
+					.println("Usage: \n hadoop ... input_path output_path clusters max_iterations");
 			return;
 		}
 		String input = args[0];
@@ -62,6 +33,7 @@ public class KMeans {
 		String countOutput = output + "_count";
 		String clustersInitialPath = output + "_0";
 		int clusters = Integer.parseInt(args[2]);
+		int iterations = Integer.parseInt(args[3]);
 
 		ValueCounter counter = new ValueCounter();
 		long records = counter.countValues(input, countOutput);
@@ -75,17 +47,11 @@ public class KMeans {
 			throw new Exception("########################################################### Errior during initialization");
 		}
 
-		JobConf conf = new JobConf(KMeans.class);
-		conf.setJobName("########################################################### KMEANS CLUSTERING");
-		conf.setOutputKeyClass(Text.class);
-		conf.setOutputValueClass(IntWritable.class);
-		conf.setMapperClass(Map.class);
-		conf.setCombinerClass(Reduce.class);
-		conf.setReducerClass(Reduce.class);
-		conf.setInputFormat(TextInputFormat.class);
-		conf.setOutputFormat(TextOutputFormat.class);
-		FileInputFormat.setInputPaths(conf, new Path(args[0]));
-		FileOutputFormat.setOutputPath(conf, new Path(args[1]));
-		JobClient.runJob(conf);
+		
+		Clustering clustering = new Clustering(input, output, clustersInitialPath,iterations);
+		
+		clustering.run();
+		
+
 	}
 }
