@@ -19,10 +19,11 @@ hadoop fs -ls sius/input
 
 COMPILE & RUN:
 
-javac -cp .:/usr/lib/hadoop/*:/usr/lib/hadoop-0.20-mapreduce/*:kmeans -d wordcount_classes kmeans/src/clustering/kmeans/impl/* kmeans/src/clustering/kmeans/datatypes/*
+javac -cp .:/usr/lib/hadoop/*:/usr/lib/hadoop-0.20-mapreduce/*:kmeans -d wordcount_classes kmeans/src/clustering/kmeans/impl/* kmeans/src/clustering/kmeans/datatypes/* kmeans/src/clustering/kmeans/distance/DistanceMeasure.java kmeans/src/clustering/kmeans/distance/impl/*
+
 
 jar -cvf clustering.jar -C wordcount_classes/ .
-hadoop jar clustering.jar clustering.kmeans.impl.KMeans sius/input sius/output1 3
+hadoop jar clustering.jar clustering.kmeans.impl.KMeans sius/input sius/output45 3 3
 
 EACH TIME YOU RUN A JOB YOU NEED NEW OUTPUT DIRECTORY
 
