@@ -1,20 +1,19 @@
 package clustering.kmeans.impl;
 
 import java.io.BufferedReader;
-import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.Iterator;
 
+import org.apache.hadoop.filecache.DistributedCache;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.PathFilter;
 import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.LongWritable;
-import org.apache.hadoop.io.SequenceFile;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapred.FileInputFormat;
 import org.apache.hadoop.mapred.FileOutputFormat;
@@ -25,12 +24,11 @@ import org.apache.hadoop.mapred.OutputCollector;
 import org.apache.hadoop.mapred.Reducer;
 import org.apache.hadoop.mapred.Reporter;
 import org.apache.hadoop.mapred.TextInputFormat;
-import org.apache.hadoop.mapred.TextOutputFormat;
 import org.apache.hadoop.mapreduce.Job;
 
 import clustering.kmeans.datatypes.Vector;
-import clustering.kmeans.impl.ClustersRandomInitialization.Map;
-import clustering.kmeans.impl.ClustersRandomInitialization.Reduce;
+import clustering.kmeans.distance.DistanceMeasure;
+import clustering.kmeans.distance.impl.Euclidean;
 
 public class Clustering {
 
@@ -75,22 +73,41 @@ public class Clustering {
 			Mapper<LongWritable, Text, IntWritable, Text> {
 		private final static IntWritable one = new IntWritable(1);
 
-		private ArrayList<Vector> clusters = new ArrayList<Vector> ();
-
+		private ArrayList<Vector> clusters = new ArrayList<Vector>();
+		private DistanceMeasure measure;
+		
+		
 		@Override
 		public void map(LongWritable key, Text value,
 				OutputCollector<IntWritable, Text> out, Reporter arg3)
 				throws IOException {
 
 			String line = value.toString();
-
+			
 			Vector v = Vector.createVector(line);
+			Vector v2 = null;
+			double distanceMax = Double.MAX_VALUE;
+			for(Vector vec : clusters){
+				double distance = measure.distance(vec, v);
+				if(distance< distanceMax){
+					distanceMax = distance;
+					v2 = vec;
+				}
+				
+				
+			}
+			
+			if(v2 != null){
+				out.collect(new IntWritable((int)v2.getNr()), new Text(v.toStringWithoutNr()));
+			}
 
 		}
 
 		@Override
 		public void configure(JobConf job) {
 			System.out.println("CONFIGURE");
+			
+			measure = new Euclidean();
 			
 			String clustersPath = job.get(CURRENT_PATH_CLUSTER_PROPERTY);
 			try {
@@ -101,28 +118,33 @@ public class Clustering {
 			}
 		}
 
-		void load(Path path, FileSystem fs,JobConf job) throws IOException {
+		void load(Path path, FileSystem fs, JobConf job) throws IOException {
 			System.out.println("Loading Clusters: " + path.getName());
-			FileStatus[] statuses = fs.listStatus(path,new PathFilter() {
-                public boolean accept(Path path) {
-                    return path.toString().contains("part-");
-                 }
-              });
-			
-			for(FileStatus status : statuses){
+			FileStatus[] statuses = fs.listStatus(path, new PathFilter() {
+				public boolean accept(Path path) {
+					return path.toString().contains("part-");
+				}
+			});
+
+			for (FileStatus status : statuses) {
 				System.out.println(status.getPath().toString());
-				
-				 InputStream stream = fs.open(status.getPath());
-				 
-					BufferedReader wordReader = new BufferedReader(new InputStreamReader(stream));
-					try {
-						String line;
-						while ((line = wordReader.readLine()) != null) {
-							System.out.println("ReadLine: "+line);
-						}
-					} finally {
-						wordReader.close();
+
+				InputStream stream = fs.open(status.getPath());
+
+				BufferedReader wordReader = new BufferedReader(
+						new InputStreamReader(stream));
+				try {
+					String line;
+					while ((line = wordReader.readLine()) != null) {
+						System.out.println("ReadLine: " + line);
+						String[] l2 = line.split("\t");
+						Vector vec = Vector.createVectorWithoutNr(l2[1]);
+						vec.setNr(Long.parseLong(l2[0]));
+						clusters.add(vec);
 					}
+				} finally {
+					wordReader.close();
+				}
 			}
 
 		}
@@ -135,26 +157,25 @@ public class Clustering {
 		public void reduce(IntWritable key, Iterator<Text> values,
 				OutputCollector<IntWritable, Text> output, Reporter arg3)
 				throws IOException {
-			long count=0;
-			
+			long count = 0;
+
 			Vector sum = null;
 			while (values.hasNext()) {
 				Text t = values.next();
 				Vector v = Vector.createVectorWithoutNr(t.toString());
-				if(sum == null){
+				if (sum == null) {
 					sum = v;
 				} else {
 					sum.add(v);
 				}
 				count = count + 1;
 			}
-			
-			if(sum!=null){
-				sum.multiply(1/(double)count);
+
+			if (sum != null) {
+				sum.multiply(1 / (double) count);
 				output.collect(key, new Text(sum.toStringWithoutNr()));
 			}
-			
-			
+
 		}
 
 	}
