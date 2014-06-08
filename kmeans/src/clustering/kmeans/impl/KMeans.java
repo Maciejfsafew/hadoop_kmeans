@@ -21,10 +21,11 @@ public class KMeans {
 		long prevError = Long.MAX_VALUE;
 		long currentError = 0;
 		ArrayList<Long> errors = new ArrayList<Long>();
-		errors.add(prevError);
+		ArrayList<Long> time = new ArrayList<Long>();
 		System.out.println("########################################################### COUNTED RECORDS: " + records);
 		
 		for(int clusters = 2; clusters < 400; clusters *=2){
+			long begin = System.currentTimeMillis();
 			ClustersRandomInitialization initialization = new ClustersRandomInitialization(
 					clusters, records, input, clustersInitialPath+"_"+clusters);
 	
@@ -42,10 +43,11 @@ public class KMeans {
 			if(Math.abs(prevError - currentError) < 0.1 * prevError){
 				break;
 			}
+			time.add(System.currentTimeMillis());
 		}
 		System.out.println("Errors:");
-		for(Long err : errors){
-			System.out.println(err);
+		for(int i = 0; i < errors.size(); i ++){
+			System.out.println("err: "+errors.get(i)+" time: "+time.get(i));
 		}
 		
 	}
