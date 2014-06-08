@@ -7,7 +7,6 @@ import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.Iterator;
 
-import org.apache.hadoop.filecache.DistributedCache;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -24,6 +23,7 @@ import org.apache.hadoop.mapred.OutputCollector;
 import org.apache.hadoop.mapred.Reducer;
 import org.apache.hadoop.mapred.Reporter;
 import org.apache.hadoop.mapred.TextInputFormat;
+import org.apache.hadoop.mapreduce.Counter;
 import org.apache.hadoop.mapreduce.Job;
 
 import clustering.kmeans.datatypes.Vector;
@@ -37,12 +37,16 @@ public class Clustering {
 	private String output;
 	private String clustersInitialPath;
 	private int iterations;
+	private long error = 0;
 
 	public void run() throws Exception {
 		int it = 1;
 
 		String prev = clustersInitialPath;
+		Long prevError = Long.MAX_VALUE;
+		
 		while (it <= iterations) {
+			
 			String outputPath = output + "_" + it;
 			JobConf conf = new JobConf(KMeans.class);
 			conf.setJobName("########################################################### KMEANS CLUSTERING ITERATION: "
@@ -51,6 +55,7 @@ public class Clustering {
 			conf.setOutputValueClass(Text.class);
 			conf.setMapperClass(Map.class);
 			conf.setReducerClass(Reduce.class);
+			conf.setCombinerClass(Combiner.class);
 			conf.setInputFormat(TextInputFormat.class);
 
 			conf.set(CURRENT_PATH_CLUSTER_PROPERTY, prev);
@@ -64,41 +69,50 @@ public class Clustering {
 				throw new Exception("Error during Clustering, iteration: " + it);
 			}
 
+			Counter counter = job.getCounters().findCounter(
+					RecordsCounter.Records);
+			setError(counter.getValue());
 			prev = outputPath;
 			it++;
+			
+			if(Math.abs(prevError - error) < 0.1 * prevError){
+				break;
+			}
+			prevError = error;
 		}
 	}
 
 	public static class Map extends MapReduceBase implements
 			Mapper<LongWritable, Text, IntWritable, Text> {
-		private final static IntWritable one = new IntWritable(1);
 
 		private ArrayList<Vector> clusters = new ArrayList<Vector>();
 		private DistanceMeasure measure;
-		
-		
+
 		@Override
 		public void map(LongWritable key, Text value,
-				OutputCollector<IntWritable, Text> out, Reporter arg3)
+				OutputCollector<IntWritable, Text> out, Reporter reporter)
 				throws IOException {
 
 			String line = value.toString();
-			
+
 			Vector v = Vector.createVector(line);
 			Vector v2 = null;
 			double distanceMax = Double.MAX_VALUE;
-			for(Vector vec : clusters){
+			for (Vector vec : clusters) {
 				double distance = measure.distance(vec, v);
-				if(distance< distanceMax){
+				if (distance < distanceMax) {
 					distanceMax = distance;
 					v2 = vec;
 				}
-				
-				
+
 			}
-			
-			if(v2 != null){
-				out.collect(new IntWritable((int)v2.getNr()), new Text(v.toStringWithoutNr()));
+
+			Counter counter = reporter.getCounter(RecordsCounter.Records);
+			counter.increment((long) (measure.distance(v2, v)));
+			v.setNr(1);
+			if (v2 != null) {
+				out.collect(new IntWritable((int) v2.getNr()),
+						new Text(v.toString()));
 			}
 
 		}
@@ -106,13 +120,14 @@ public class Clustering {
 		@Override
 		public void configure(JobConf job) {
 			System.out.println("CONFIGURE");
-			
+
 			measure = new Euclidean();
-			
+
 			String clustersPath = job.get(CURRENT_PATH_CLUSTER_PROPERTY);
 			try {
-				FileSystem fs = FileSystem.get(new Path(clustersPath).toUri(),job);
-				load(new Path(clustersPath), fs,job);
+				FileSystem fs = FileSystem.get(new Path(clustersPath).toUri(),
+						job);
+				load(new Path(clustersPath), fs, job);
 			} catch (IOException e) {
 				throw new RuntimeException(e.getCause());
 			}
@@ -151,6 +166,37 @@ public class Clustering {
 
 	}
 
+	public static class Combiner extends MapReduceBase implements
+			Reducer<IntWritable, Text, IntWritable, Text> {
+		@Override
+		public void reduce(IntWritable key, Iterator<Text> values,
+				OutputCollector<IntWritable, Text> output, Reporter arg3)
+				throws IOException {
+			long count = 0;
+
+			Vector sum = null;
+			while (values.hasNext()) {
+				Text t = values.next();
+				Vector v = Vector.createVector(t.toString());
+				v.multiply(v.getNr());
+				if (sum == null) {
+					sum = v;
+				} else {
+					sum.add(v);
+				}
+				count = count + v.getNr();
+			}
+			
+			if (sum != null) {
+				sum.setNr(count);
+				sum.multiply(1 / (double) count);
+				output.collect(key, new Text(sum.toString()));
+			}
+
+		}
+
+	}
+
 	public static class Reduce extends MapReduceBase implements
 			Reducer<IntWritable, Text, IntWritable, Text> {
 		@Override
@@ -162,13 +208,14 @@ public class Clustering {
 			Vector sum = null;
 			while (values.hasNext()) {
 				Text t = values.next();
-				Vector v = Vector.createVectorWithoutNr(t.toString());
+				Vector v = Vector.createVector(t.toString());
+				v.multiply(v.getNr());
 				if (sum == null) {
 					sum = v;
 				} else {
 					sum.add(v);
 				}
-				count = count + 1;
+				count = count + v.getNr();
 			}
 
 			if (sum != null) {
@@ -187,6 +234,14 @@ public class Clustering {
 		this.output = output;
 		this.clustersInitialPath = clustersInitialPath;
 		this.iterations = iterations;
+	}
+
+	public long getError() {
+		return error;
+	}
+
+	public void setError(long error) {
+		this.error = error;
 	}
 
 }

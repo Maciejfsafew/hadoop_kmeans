@@ -1,57 +1,52 @@
 package clustering.kmeans.impl;
 
-import java.io.IOException;
-import java.util.Iterator;
-import java.util.StringTokenizer;
-
-import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.io.IntWritable;
-import org.apache.hadoop.io.LongWritable;
-import org.apache.hadoop.io.Text;
-import org.apache.hadoop.mapred.FileInputFormat;
-import org.apache.hadoop.mapred.FileOutputFormat;
-import org.apache.hadoop.mapred.JobClient;
-import org.apache.hadoop.mapred.JobConf;
-import org.apache.hadoop.mapred.MapReduceBase;
-import org.apache.hadoop.mapred.Mapper;
-import org.apache.hadoop.mapred.OutputCollector;
-import org.apache.hadoop.mapred.Reducer;
-import org.apache.hadoop.mapred.Reporter;
-import org.apache.hadoop.mapred.TextInputFormat;
-import org.apache.hadoop.mapred.TextOutputFormat;
+import java.util.ArrayList;
 
 public class KMeans {
 
 	public static void main(String[] args) throws Exception {
-		if (args.length != 4) {
+		if (args.length != 3) {
 			System.out
-					.println("Usage: \n hadoop ... input_path output_path clusters max_iterations");
+					.println("Usage: \n hadoop ... input_path output_path max_iterations");
 			return;
 		}
 		String input = args[0];
 		String output = args[1];
 		String countOutput = output + "_count";
 		String clustersInitialPath = output + "_0";
-		int clusters = Integer.parseInt(args[2]);
-		int iterations = Integer.parseInt(args[3]);
+		int iterations = Integer.parseInt(args[2]);
 
 		ValueCounter counter = new ValueCounter();
 		long records = counter.countValues(input, countOutput);
-		
+		long prevError = Long.MAX_VALUE;
+		long currentError = 0;
+		ArrayList<Long> errors = new ArrayList<Long>();
+		errors.add(prevError);
 		System.out.println("########################################################### COUNTED RECORDS: " + records);
-		ClustersRandomInitialization initialization = new ClustersRandomInitialization(
-				clusters, records, input, clustersInitialPath);
-
-		int initRandom = initialization.execute();
-		if(initRandom!=0){
-			throw new Exception("########################################################### Errior during initialization");
+		
+		for(int clusters = 2; clusters < 400; clusters *=2){
+			ClustersRandomInitialization initialization = new ClustersRandomInitialization(
+					clusters, records, input, clustersInitialPath+"_"+clusters);
+	
+			int initRandom = initialization.execute();
+			if(initRandom!=0){
+				throw new Exception("########################################################### Errior during initialization");
+			}
+	
+			Clustering clustering = new Clustering(input, output+clusters, clustersInitialPath+"_"+clusters,iterations);
+			
+			clustering.run();
+			currentError = clustering.getError();
+			errors.add(currentError);
+			System.out.println("########################################################### CURRENT ERROR: " + currentError+" CLUSTERS : "+clusters );
+			if(Math.abs(prevError - currentError) < 0.1 * prevError){
+				break;
+			}
 		}
-
+		System.out.println("Errors:");
+		for(Long err : errors){
+			System.out.println(err);
+		}
 		
-		Clustering clustering = new Clustering(input, output, clustersInitialPath,iterations);
-		
-		clustering.run();
-		
-
 	}
 }

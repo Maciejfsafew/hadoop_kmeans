@@ -31,3 +31,6 @@ http://localhost:50030/jobtracker.jsp
 
 hadoop fs -cat sius/output1/part-00000
 
+
+
+./get_files.sh sius/output46 output 3
