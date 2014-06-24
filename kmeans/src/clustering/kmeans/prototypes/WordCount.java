@@ -20,6 +20,12 @@ import org.apache.hadoop.mapred.Reporter;
 import org.apache.hadoop.mapred.TextInputFormat;
 import org.apache.hadoop.mapred.TextOutputFormat;
 
+/**
+ * Klasa testowa, hello world - word count.
+ * 
+ * @author Maciej Mazur
+ *
+ */
 public class WordCount {
 	public static class Map extends MapReduceBase implements
 			Mapper<LongWritable, Text, Text, IntWritable> {

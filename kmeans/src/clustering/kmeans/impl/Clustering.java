@@ -30,17 +30,52 @@ import clustering.kmeans.datatypes.Vector;
 import clustering.kmeans.distance.DistanceMeasure;
 import clustering.kmeans.distance.impl.Euclidean;
 
+/**
+ * Glowna klasa uruchamiajaca klasteryzacje.
+ * 
+ * @author Maciej Mazur
+ *
+ */
 public class Clustering {
 
+	/**
+	 * Plik zawierajcy klastry utworzone w poprzedniej iteracji.
+	 */
 	public static final String CURRENT_PATH_CLUSTER_PROPERTY = "current.clusters";
+	/**
+	 * Sciezka do pliku z danymi do klasteryzacji
+	 */
 	private String input;
+	/**
+	 * Prefiks sciezki do pliku do ktorego zostana zapisane oblcizone klastry.
+	 */
 	private String output;
+	
+	/**
+	 * Sciezka do pliku z losowo zainicjalizowanymi klastrami.
+	 */
 	private String clustersInitialPath;
+	/**
+	 * Odgorne ogranicznie na liczbe iteracji.
+	 */
 	private int iterations;
-	private long error = 0;
+	/**
+	 * Blad otrzymany po wszystkich wykonanych iteracjach.
+	 */
+	private ArrayList<Long> errors = new ArrayList<Long>();
 
+	private int it = 1;
+
+	private final double errorThreashold = 0.0001;
+	/**
+	 * Metoda odpowiedzialne za odpalanie kolejnych iteracji algorytmu.
+	 * W kazym kroku tworzony jest nowy plik z obliczonymi klastrami, ktory zostanie uzyty w kolejnej iteracji.
+	 * Funkcja zostaje przerwana w dwoch przypadkach:
+	 * - zostanie osiagnieta maksymala liczba iteracji.
+	 * - blad z poprzedniej iteracji bedzie mniejszy niz 10% calkowitego bledu z poprzedniej iteracji.
+	 * @throws Exception
+	 */
 	public void run() throws Exception {
-		int it = 1;
 
 		String prev = clustersInitialPath;
 		Long prevError = Long.MAX_VALUE;
@@ -71,21 +106,37 @@ public class Clustering {
 
 			Counter counter = job.getCounters().findCounter(
 					RecordsCounter.Records);
-			setError(counter.getValue());
+			errors.add(counter.getValue());
+			long error = counter.getValue();
 			prev = outputPath;
 			it++;
 			
-			if(Math.abs(prevError - error) < 0.1 * prevError){
+			if(Math.abs(prevError - error) < errorThreashold * prevError){
 				break;
 			}
 			prevError = error;
 		}
 	}
-
+	/**
+	 * Mapper odpowiedzialny jest za wykonanie trzech operacji:
+	 * - wczytanie danych z pliku umieszczonego w systemie plikow hdfs.
+	 * - przypisanie wektorom z danymi do najblizszego klastra.
+	 * - obliczenie funkcji kosztu.
+	 * Rezultatem mappingu jest klucz, ktory reprezentuje numer najblizszego klastra oraz
+	 * wektor danych bedacy kopia wektora danych.
+	 * @author Maciej Mazur
+	 *
+	 */
 	public static class Map extends MapReduceBase implements
 			Mapper<LongWritable, Text, IntWritable, Text> {
 
+		/**
+		 * Struktura zawierajaca klastry.
+		 */
 		private ArrayList<Vector> clusters = new ArrayList<Vector>();
+		/**
+		 * Metryka oleglosci miedzy dwoama wektorami
+		 */
 		private DistanceMeasure measure;
 
 		@Override
@@ -107,8 +158,14 @@ public class Clustering {
 
 			}
 
+			/**
+			 * Obliczanie wartosci kosztu dla poprzedniej iteracji.
+			 */
 			Counter counter = reporter.getCounter(RecordsCounter.Records);
 			counter.increment((long) (measure.distance(v2, v)));
+			/**
+			 * Ustawienie zaagregowanej wartosci ilosci elementow w sredniej.
+			 */
 			v.setNr(1);
 			if (v2 != null) {
 				out.collect(new IntWritable((int) v2.getNr()),
@@ -117,6 +174,10 @@ public class Clustering {
 
 		}
 
+		/**
+		 * Inicjalizacja struktury danych reprezentujacej klastry przed uruchomieniem mappera.
+		 * Zostaje wczytany plik zawierajacy klastry obliczone w poprzedniej iteracji.
+		 */
 		@Override
 		public void configure(JobConf job) {
 			System.out.println("CONFIGURE");
@@ -166,6 +227,13 @@ public class Clustering {
 
 	}
 
+	/**
+	 * Combiner agreguje wartosci srednich dla zadanych kluczy.
+	 * Wykonuje operacje analogiczna do tej ktora wykonywana jest przez klase Reduce,
+	 * z tym wyjatkiem ze zapisywana jest rowniez wartosc oznaczajaca krotnosc elementow w agregowanej sredniej.
+	 * @author Maciej Mazur
+	 *
+	 */
 	public static class Combiner extends MapReduceBase implements
 			Reducer<IntWritable, Text, IntWritable, Text> {
 		@Override
@@ -197,6 +265,17 @@ public class Clustering {
 
 	}
 
+	/**
+	 * Reducer
+	 * Klucz - numer klastra.
+	 * Wartosc - Wektor - ilosc elementow w sredniej i wektor reprezentujacy srednia
+	 * Podczas funkcji reduce zostaja wczytane wektory reprezentujace srednie zaagregowanych wartosci
+	 * przynalezacych do wybranego klastra. Glowna operacja, ktora zachodzi podczas operacji reduce jest
+	 * agregowanie tych wartosci i wyliczanie sredniej ze wszystkich wartosci. Po dokonaniu tej operacji
+	 * nastepuje zapisanie obliczonego usrednionego wektora, reprezuntujacego srodek klastra do pliku wyjsciowego.
+	 * @author Maciej Mazur
+	 *
+	 */
 	public static class Reduce extends MapReduceBase implements
 			Reducer<IntWritable, Text, IntWritable, Text> {
 		@Override
@@ -204,8 +283,8 @@ public class Clustering {
 				OutputCollector<IntWritable, Text> output, Reporter arg3)
 				throws IOException {
 			long count = 0;
-
 			Vector sum = null;
+			
 			while (values.hasNext()) {
 				Text t = values.next();
 				Vector v = Vector.createVector(t.toString());
@@ -229,19 +308,24 @@ public class Clustering {
 
 	public Clustering(String input, String output, String clustersInitialPath,
 			int iterations) {
-
 		this.input = input;
 		this.output = output;
 		this.clustersInitialPath = clustersInitialPath;
 		this.iterations = iterations;
 	}
 
-	public long getError() {
-		return error;
+	public ArrayList<Long> getErrors() {
+		return errors;
 	}
 
-	public void setError(long error) {
-		this.error = error;
+
+	
+	public int getIt() {
+		return it;
+	}
+
+	public void setIt(int it) {
+		this.it = it;
 	}
 
 }

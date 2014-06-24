@@ -3,8 +3,8 @@ package clustering.kmeans.distance.impl;
 import clustering.kmeans.datatypes.Vector;
 import clustering.kmeans.distance.DistanceMeasure;
 /**
- * Prototype - don't touch
- * @author training
+ * Prosta metryka pozwalajaca na sprawdzenie ile wymiarow dwoch wektorow ma te same wspolrzedne.
+ * @author Maciej Mazur
  *
  */
 public class SimilarityUtils implements DistanceMeasure{

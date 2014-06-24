@@ -31,7 +31,17 @@ import org.apache.hadoop.mapreduce.Job;
 
 import clustering.kmeans.datatypes.Vector;
 
+/**
+ * Klasa odpowiedzialna za inicjalizacje klastrow na podstawie pliku wczytanego z distributed cache.
+ * Podczas konfiguracji zostaja wczytane numery klastrow. Oznaczaja one numery rektordow, ktore 
+ * zostana uzyte jako pierwszy zestaw klastrow.
+ * @author Maciej Mazur
+ *
+ */
 public class ClustersRandomInitialization {
+	/**
+	 * Sciezka do pliku w distributed cache.
+	 */
 	private static final String HDFS_CLUSTER_INITIALIZATION_CACHE = "/data/initial_clusters_numbers.txt";
 
 	public static class Map extends MapReduceBase implements
@@ -40,6 +50,9 @@ public class ClustersRandomInitialization {
 
 		private HashSet<Long> selectedIndexes = new HashSet<Long>();
 
+		/**
+		 * Mapper filtruje wybrane wartosci, ktore zostana pozniej uzyte jako srodki klastrow.
+		 */
 		@Override
 		public void map(LongWritable key, Text value,
 				OutputCollector<IntWritable, Text> out, Reporter arg3)
@@ -55,6 +68,9 @@ public class ClustersRandomInitialization {
 
 		}
 
+		/**
+		 * Wczytanie pliku z numerami klastrow z distributed cache.
+		 */
 		@Override
 		public void configure(JobConf job) {
 			System.out.println("CONFIGURE");
@@ -93,6 +109,11 @@ public class ClustersRandomInitialization {
 
 	}
 
+	/**
+	 * Reduce przeglada wszystkie wartosci i nadaje im kolejne numery, ktore stana sie pozniej numerami klastrow.
+	 * @author Maciej Mazur
+	 *
+	 */
 	public static class Reduce extends MapReduceBase implements
 			Reducer<IntWritable, Text, IntWritable, Text> {
 		@Override
@@ -124,6 +145,15 @@ public class ClustersRandomInitialization {
 		this.records = records;
 	}
 
+	/**
+	 * Urochomienie zadania odpowiedzialnego za utworzenie poczatkowych klastrow.
+	 * Wystepuje tylko jedno zadanie typu Reduce.
+	 * @return
+	 * @throws IOException
+	 * @throws InterruptedException
+	 * @throws ClassNotFoundException
+	 * @throws URISyntaxException
+	 */
 	public int execute() throws IOException, InterruptedException,
 			ClassNotFoundException, URISyntaxException {
 		JobConf conf = new JobConf(ClustersRandomInitialization.class);
@@ -145,6 +175,13 @@ public class ClustersRandomInitialization {
 		return job.waitForCompletion(true) ? 0 : 1;
 	}
 
+	
+	/**
+	 * Inicjalizacja pliku z numerami rektortdow ktore zostana pozniej uzyte jako srodki klastrow.
+	 * @param conf
+	 * @throws IOException
+	 * @throws URISyntaxException
+	 */
 	private void initializeCache(JobConf conf) throws IOException,
 			URISyntaxException {
 		Path cache = new Path(HDFS_CLUSTER_INITIALIZATION_CACHE);

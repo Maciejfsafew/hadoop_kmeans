@@ -20,7 +20,12 @@ import org.apache.hadoop.mapred.TextOutputFormat;
 import org.apache.hadoop.mapreduce.Counter;
 import org.apache.hadoop.mapreduce.Job;
 
-
+/**
+ * Klasa pomocnicza odpowiedizalna za zliczenie rektordow w zbiorze z danymi.
+ * Wystepuje jeden counter, mapper nie produkuje zadnego wyjscia, nie jest potrzebny reducer.
+ * @author Maciej Mazur
+ *
+ */
 public class ValueCounter {
 	public static class Map extends MapReduceBase implements
 			Mapper<LongWritable, Text, NullWritable, NullWritable> {

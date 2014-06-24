@@ -2,17 +2,33 @@ package clustering.kmeans.datatypes;
 
 import java.util.Arrays;
 
+
+/**
+ * Klasa enkapsulujaca wektor z danymi.
+ * Uzywana jest podczas wczytywania danych w mapperze i do przesylania zaagregowanych danych do reducera.
+ * Znajduje tez zastosowanie przy reprezentacji klastrow.
+ * @author Maciej Mazur
+ *
+ */
 public class Vector {
 	
-
+	/**
+	 * Identyfikator klastra, badz identyfikator wektora danych.
+	 */
 	long nr;
-	
+	/**
+	 * Wspolczynniki wektora w przesrzeni n-wymiarowej.
+	 */
 	double coeficients[];
 	
 	public Vector(int size){
 		coeficients = new double[size];
 	}
 	
+	/**
+	 * Dodawanie wektorow.
+	 * @param v
+	 */
 	public void add(Vector v){
 		if(v==null||v.getCoeficients()==null||v.getCoeficients().length!=coeficients.length){
 			System.out.println("Add Error, wrong vector");
@@ -23,18 +39,27 @@ public class Vector {
 			coeficients[i] += coefs[i];
 		}	
 	}
-	
+	/**
+	 * Mnozenie wektora przez stala.
+	 * @param v
+	 */
 	public void multiply(double v){
 		for(int i = 0; i < coeficients.length; i ++){
 			coeficients[i] *= v;
 		}
 	}
 	
+	
 	private Vector(long nr, double t[]){
 		this.nr = nr;
 		this.coeficients = t;
 	}
 	
+	/**
+	 * Statyczna metoda do produkcji uzywana przez mappera.
+	 * @param s
+	 * @return
+	 */
 	public static Vector createVector(String s){
 		if(s!= null){
 			String t[] = s.split(" ");
@@ -51,6 +76,11 @@ public class Vector {
 		return null;
 	}
 	
+	/**
+	 * Tworzenie wektora nie posiadajacego swojego identyfikatora.
+	 * @param s
+	 * @return
+	 */
 	public static Vector createVectorWithoutNr(String s){
 		if(s!= null){
 			String t[] = s.split(" ");

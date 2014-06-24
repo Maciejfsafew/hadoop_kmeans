@@ -3,6 +3,11 @@ package clustering.kmeans.distance.impl;
 import clustering.kmeans.datatypes.Vector;
 import clustering.kmeans.distance.DistanceMeasure;
 
+/**
+ * Klasa odpowiedzialna za obliczanie metryki Euklidesa (Pominiety pierwiastek). 
+ * @author Maciej Mazur
+ *
+ */
 public class Euclidean implements DistanceMeasure{
 
 	@Override
